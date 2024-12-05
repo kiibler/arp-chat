@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
 from enum import Enum
-from scapy.all import ARP, AsyncSniffer, conf, Ether, srploop
-from threading import Thread
+from scapy.all import ARP, conf, Ether
 
 
 class Kind(Enum):
-    HELLO = "02"
+    START = "06"
 
 
 class Addr(Enum):
@@ -17,9 +16,7 @@ class Addr(Enum):
 descriptions = {
     "exit": "Exit from this program.",
     "help": "Get info about a command",
-    "show": "Show status of parts of the program",
-    "start": "Start parts of the program",
-    "stop": "Stop parts of the program",
+    "send": "Send message",
 }
 
 
@@ -29,29 +26,10 @@ class Chatter:
         self.mac = conf.iface.mac
         self.iface = conf.iface.network_name
 
-        self.hello_broadcast = Thread(target=self.start_hello, daemon=True)
-
-        self.sniffer = AsyncSniffer(
-            filter="arp",
-            iface=self.iface,
-            store=False,
-            quiet=True,
-            prn=self.check_for_data,
-        )
-        self.peers = []
-
         self.cmds = {
             "exit": self.exit,
             "help": self.help,
-            "show": self.not_implemented,
-            "start": {
-                "sniffer": self.start_sniffer,
-                "broadcast": self.not_implemented,
-            },
-            "stop": {
-                "sniffer": self.stop_sniffer,
-                "broadcast": self.not_implemented,
-            },
+            "send": self.send,
         }
         self.cmd_descs = descriptions
         self.is_running = True
@@ -66,78 +44,58 @@ class Chatter:
             print(f"Unknown command: {main}.")
 
     def run_cmd(self, main, *args):
-        if len(args):
-            pass
-        else:
-            pass
-
-        # try:
-        #     if isinstance(self.cmds[main], dict):
-        #         self.cmds[main][args[0]](*args[1:])
-        #     else:
-        #         self.cmds[main](*args)
-        # except TypeError:
-        #     print(f"Wrong amount of arguments to '{main}'.")
-        # except KeyError:
-        #     print(f"Unknown argument '{args[0]}' to '{main}'.")
-
-    def not_implemented(self):
-        print("NOT IMPLEMENTED.")
+        try:
+            self.cmds[main](*args)
+        except KeyError:
+            print(f"Unknown argument '{args[0]}' to '{main}'.")
 
     def exit(self):
         self.is_running = False
 
     def help(self, *args):
-        if len(args) == 1:
-            print(f"\t{args[0]}: {self.cmd_descs[args[0]]}")
-        elif len(args) == 0:
+        if len(args) == 0:
             print("Available commands:")
             for cmd in self.cmds.keys():
                 print(f"\t{cmd}")
 
             print("Use help to get information about a specific command:")
-            print("For example: start help")
+            print("For example: help exit")
+        else:
+            try:
+                print(f"\t{args[0]}: {self.cmd_descs[args[0]]}")
+            except KeyError:
+                print(f"Unknown command '{args[0]}'.")
 
-    def start_hello(self, interval=3):
-        packet = Ether(src=self.mac, dst=Addr.BROADCAST.value) / ARP(
-            hwsrc="02:00:00:00:00:00",
+    def msg_to_hex_arr(self, message):
+        return [hex(ord(c))[2:] for c in message.strip()]
+
+    def int_to_hex_padded(self, len_hex_msg):
+        return f"{len_hex_msg:#0{4}x}"[2:]
+
+    def build_arp(self, payload):
+        if len(payload) != 6:
+            for i in range(6 - len(payload)):
+                payload.append("ff")
+
+        eth = Ether(src=self.mac, dst=Addr.BROADCAST.value)
+        arp = ARP(
+            hwsrc=":".join(payload),
             hwdst=Addr.BROADCAST.value,
             psrc=self.ip,
-            pdst="0.0.0.0",
+            pdst=Addr.ANY.value,
         )
 
-        srploop(
-            pkts=packet,
-            store=False,
-            timeout=interval,
-            verbose=0,
-            iface=self.iface,
-            stop_filter=lambda p: "STOP" in str(p),
-        )
+        return eth / arp
 
-    def start_sniffer(self):
-        self.sniffer.start()
-        print("Started packet sniffer.")
+    def send(self):
+        message = input("Enter a message: ")
 
-    def stop_sniffer(self):
-        self.sniffer.stop()
-        print("Stopped packet sniffer.")
+        hex_msg = self.msg_to_hex_arr(message)
+        len_hex_msg = self.int_to_hex_padded(len(hex_msg))
 
-    def check_for_data(self, p):
-        eth, arp = p[Ether], p[ARP]
-
-        if eth.src != self.mac:
-            match arp.hwsrc[:2]:
-                case Kind.HELLO.value:
-                    self.add_to_peers(eth.src)
-
-                case _:
-                    pass
-
-    def add_to_peers(self, hwsrc):
-        if hwsrc not in self.peers:
-            self.peers.append(hwsrc)
-            print(f"{hwsrc} added to peers.")
+        self.build_arp([Kind.START.value, len_hex_msg, "ff", "ff", "ff", "ff"]).show()
+        for i in range(0, len(hex_msg), 6):
+            self.build_arp(hex_msg[i : i + 6]).show()
 
     def run(self):
         print("Starting.")
