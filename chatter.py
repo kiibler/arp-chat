@@ -6,7 +6,7 @@ from scapy.all import ARP, AsyncSniffer, conf, Ether, sendp
 
 class Kind(Enum):
     START = "06"
-    DATA = "0A"
+    DATA = "0a"
 
 
 class Addr(Enum):
@@ -45,7 +45,7 @@ class Chatter:
         self.is_running = False
 
     def help(self, *args):
-        if len(args) == 0:
+        if not args:
             print("Available commands:")
             for cmd in self.cmds.keys():
                 print(f"\t{cmd}")
@@ -79,20 +79,25 @@ class Chatter:
         eth, arp = p[Ether], p[ARP]
 
         if eth.src != self.mac:
-            match arp.hwsrc[:2]:
+            match arp.hwsrc[:2].lower():
                 case Kind.START.value:
-                    self.msg_table[eth.src] = ""
+                    self.msg_table[eth.src] = int(arp.hwsrc[3:5], 16)
 
                 case Kind.DATA.value:
                     try:
-                        self.msg_table[eth.src] += self.decode_msg(arp.hwsrc)
+                        self.decode_msg(eth.src, arp.hwsrc)
                     except KeyError:
                         pass
 
-    def decode_msg(self, hex_msg):
-        # length is important
-        # where to store it
-        pass
+    def decode_msg(self, sender, hex_msg):
+        msg = []
+        for c in range(3, len(hex_msg), 3):
+            if hex_msg[c : c + 2] != "ff":
+                msg.append(chr(int(hex_msg[c : c + 2], 16)))
+
+        self.msg_table[sender] -= len(msg)
+        if self.msg_table[sender] == 0:
+            print(f"{sender}: {"".join(msg)}")
 
     def msg_to_hex_arr(self, message):
         return [hex(ord(c))[2:] for c in message.strip()]
