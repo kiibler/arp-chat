@@ -32,12 +32,10 @@ class Chatter:
         self.cmds = {
             "exit": self.exit,
             "help": self.help,
-            "broadcast": self.broadcast,
         }
         self.cmd_descs = {
             "exit": "Exit from this program.",
             "help": "Get info about a command",
-            "broadcast": "Broadcast a message to lan",
         }
         self.is_running = True
 
@@ -49,9 +47,6 @@ class Chatter:
             print("Available commands:")
             for cmd in self.cmds.keys():
                 print(f"\t{cmd}")
-
-            print("Use help to get information about a specific command:")
-            print("For example: help exit")
         else:
             try:
                 print(f"\t{args[0]}: {self.cmd_descs[args[0]]}")
@@ -61,13 +56,15 @@ class Chatter:
     def parse_cmd(self, command):
         cmd = command.split()
 
-        if cmd:
-            main, args = cmd[0], cmd[1:]
+        if not cmd:
+            return
 
-            if main in self.cmds.keys():
-                self.run_cmd(main, *args)
-            else:
-                print(f"Unknown command: {main}.")
+        main, args = cmd[0], cmd[1:]
+
+        if main in self.cmds.keys():
+            self.run_cmd(main, *args)
+        else:
+            self.broadcast(command)
 
     def run_cmd(self, main, *args):
         try:
@@ -135,8 +132,8 @@ class Chatter:
             iface=self.iface,
         )
 
-    def broadcast(self):
-        message = input("Enter a message: ")
+    def broadcast(self, message):
+        message = message[:256]
 
         hex_msg = self.msg_to_hex_arr(message)
         msg_bytes = len(hex_msg)
@@ -152,9 +149,9 @@ class Chatter:
         print("Starting.")
         self.sniffer.start()
 
-        while c.is_running:
+        while self.is_running:
             try:
-                c.parse_cmd(input(">>> "))
+                self.parse_cmd(input(">>> "))
             except KeyboardInterrupt:
                 self.exit()
 
