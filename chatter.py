@@ -81,7 +81,10 @@ class Chatter:
         if eth.src != self.mac:
             match arp.hwsrc[:2].lower():
                 case Kind.START.value:
-                    self.msg_table[eth.src] = int(arp.hwsrc[3:5], 16)
+                    self.msg_table[eth.src] = {
+                        "len": int(arp.hwsrc[3:5], 16),
+                        "msg": "",
+                    }
 
                 case Kind.DATA.value:
                     try:
@@ -95,9 +98,11 @@ class Chatter:
             if hex_msg[c : c + 2] != "ff":
                 msg.append(chr(int(hex_msg[c : c + 2], 16)))
 
-        self.msg_table[sender] -= len(msg)
-        if self.msg_table[sender] == 0:
-            print(f"{sender}: {"".join(msg)}")
+        self.msg_table[sender]["len"] -= len(msg)
+        self.msg_table[sender]["msg"] += "".join(msg)
+
+        if self.msg_table[sender]["len"] == 0:
+            print(f"{sender}: {self.msg_table[sender]['msg']}")
 
     def msg_to_hex_arr(self, message):
         return [hex(ord(c))[2:] for c in message.strip()]
