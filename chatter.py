@@ -99,7 +99,7 @@ class Chatter:
         return [hex(ord(c))[2:] for c in message.strip()]
 
     def int_to_hex_padded(self, len_hex_msg):
-        return f"{len_hex_msg:#0{4}x}"[2:]
+        return "{:02x}".format(len_hex_msg)
 
     def build_arp(self, payload):
         p_len = len(payload)
