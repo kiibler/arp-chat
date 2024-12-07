@@ -101,16 +101,16 @@ class Chatter:
     def int_to_hex_padded(self, len_hex_msg):
         return "{:02x}".format(len_hex_msg)
 
-    def build_arp(self, payload):
-        p_len = len(payload)
+    def build_arp(self, data):
+        data_len = len(data)
 
-        if p_len != 6:
-            for i in range(6 - p_len):
-                payload.append("ff")
+        if data_len != 6:
+            for i in range(6 - data_len):
+                data.append("ff")
 
         eth = Ether(src=self.mac, dst=Addr.HWBROADCAST.value)
         arp = ARP(
-            hwsrc=":".join(payload),
+            hwsrc=":".join(data),
             hwdst=Addr.HWBROADCAST.value,
             psrc=self.ip,
             pdst=Addr.IPANY.value,
@@ -118,11 +118,10 @@ class Chatter:
 
         return eth / arp
 
-    def send(self, payload):
+    def send(self, data):
         sendp(
-            x=self.build_arp(payload),
+            x=self.build_arp(data),
             verbose=0,
-            realtime=True,
             iface=self.iface,
         )
 
