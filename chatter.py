@@ -126,7 +126,7 @@ class Chatter:
         )
 
     def broadcast(self, message):
-        message = message[:256]
+        message = message[:255]
 
         hex_msg = self.msg_to_hex_arr(message)
         msg_bytes = len(hex_msg)
