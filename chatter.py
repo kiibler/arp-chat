@@ -6,7 +6,7 @@ from scapy.all import ARP, AsyncSniffer, conf, Ether, sendp
 
 
 class Flag(Enum):
-    START = "06"
+    HEADER = "06"
     DATA = "0a"
 
 
@@ -72,7 +72,7 @@ class Chatter:
 
         if eth.src != self.mac:
             match arp.hwsrc[:2]:
-                case Flag.START.value:
+                case Flag.HEADER.value:
                     self.msg_table[eth.src] = {
                         "len": int(arp.hwsrc[3:5], 16),
                         "msg": "",
@@ -132,7 +132,7 @@ class Chatter:
         msg_bytes = len(hex_msg)
         len_hex_msg = self.int_to_hex_padded(msg_bytes)
 
-        self.send([Flag.START.value, len_hex_msg, "00", "00", "00", "00"])
+        self.send([Flag.HEADER.value, len_hex_msg, "00", "00", "00", "00"])
         for i in range(0, msg_bytes, 5):
             self.send([Flag.DATA.value] + hex_msg[i : i + 5])
 
