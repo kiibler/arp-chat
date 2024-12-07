@@ -85,7 +85,7 @@ class Chatter:
     def decode_msg(self, sender, hex_msg):
         msg = []
         for c in range(0, len(hex_msg), 3):
-            if hex_msg[c : c + 2] != "ff":
+            if hex_msg[c : c + 2] != "00":
                 msg.append(chr(int(hex_msg[c : c + 2], 16)))
 
         self.msg_table[sender]["len"] -= len(msg)
@@ -106,7 +106,7 @@ class Chatter:
 
         if data_len != 6:
             for i in range(6 - data_len):
-                data.append("ff")
+                data.append("00")
 
         eth = Ether(src=self.mac, dst=Addr.HWBROADCAST.value)
         arp = ARP(
@@ -132,7 +132,7 @@ class Chatter:
         msg_bytes = len(hex_msg)
         len_hex_msg = self.int_to_hex_padded(msg_bytes)
 
-        self.send([Flag.START.value, len_hex_msg, "ff", "ff", "ff", "ff"])
+        self.send([Flag.START.value, len_hex_msg, "00", "00", "00", "00"])
         for i in range(0, msg_bytes, 5):
             self.send([Flag.DATA.value] + hex_msg[i : i + 5])
 
