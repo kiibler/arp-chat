@@ -40,9 +40,6 @@ class Chatter:
         }
         self.is_running = True
 
-    def exit(self):
-        self.is_running = False
-
     def parse_cmd(self, command):
         cmd = command.split()
 
@@ -56,6 +53,9 @@ class Chatter:
         else:
             self.broadcast(command)
 
+    def exit(self):
+        self.is_running = False
+
     def help(self, *args):
         if not args:
             print("Available commands:")
@@ -67,20 +67,11 @@ class Chatter:
             except KeyError:
                 print(f"Unknown command '{args[0]}'.")
 
-    def check_packet(self, p):
-        eth, arp = p[Ether], p[ARP]
-
-        if eth.src != self.mac:
-            match arp.hwsrc[:2]:
-                case Flag.HEADER.value:
-                    self.msg_table[eth.src] = {
-                        "len": int(arp.hwsrc[3:5], 16),
-                        "msg": "",
-                    }
-
-                case Flag.MSG.value:
-                    if eth.src in self.msg_table.keys():
-                        self.decode_msg(eth.src, arp.hwsrc[3:])
+    def add_to_msg_table(self, sender, hex_len):
+        self.msg_table[sender] = {
+            "len": int(hex_len, 16),
+            "msg": "",
+        }
 
     def decode_msg(self, sender, hex_msg):
         msg = []
@@ -88,12 +79,30 @@ class Chatter:
             if hex_msg[c : c + 2] != "00":
                 msg.append(chr(int(hex_msg[c : c + 2], 16)))
 
+        return msg
+
+    def read_into_msg_table(self, sender, hex_msg):
+        msg = self.decode_msg(sender, hex_msg)
+
         self.msg_table[sender]["len"] -= len(msg)
         self.msg_table[sender]["msg"] += "".join(msg)
 
         if self.msg_table[sender]["len"] == 0:
             data = self.msg_table.pop(sender)
             print(f"{sender}: {data['msg']}")
+
+    def check_packet(self, p):
+        eth, arp = p[Ether], p[ARP]
+
+        if eth.src == self.mac:
+            return
+
+        match arp.hwsrc[:2]:
+            case Flag.HEADER.value:
+                self.add_to_msg_table(eth.src, arp.hwsrc[3:5])
+
+            case Flag.MSG.value:
+                self.read_into_msg_table(eth.src, arp.hwsrc[3:])
 
     def msg_to_hex_arr(self, message):
         return [hex(ord(c))[2:] for c in message.strip()]
