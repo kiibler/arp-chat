@@ -73,7 +73,7 @@ class Chatter:
             "msg": "",
         }
 
-    def decode_msg(self, sender, hex_msg):
+    def decode_hex_msg(self, sender, hex_msg):
         msg = []
         for c in range(0, len(hex_msg), 3):
             if hex_msg[c : c + 2] != "00":
@@ -82,7 +82,7 @@ class Chatter:
         return msg
 
     def read_into_msg_table(self, sender, hex_msg):
-        msg = self.decode_msg(sender, hex_msg)
+        msg = self.decode_hex_msg(sender, hex_msg)
 
         self.msg_table[sender]["len"] -= len(msg)
         self.msg_table[sender]["msg"] += "".join(msg)
