@@ -5,7 +5,7 @@ from os import getuid
 from scapy.all import ARP, AsyncSniffer, conf, Ether, sendp
 
 
-class Kind(Enum):
+class Flag(Enum):
     START = "06"
     DATA = "0a"
 
@@ -43,6 +43,19 @@ class Chatter:
     def exit(self):
         self.is_running = False
 
+    def parse_cmd(self, command):
+        cmd = command.split()
+
+        if not cmd:
+            return
+
+        main, args = cmd[0], cmd[1:]
+
+        if main in self.cmds.keys():
+            self.cmds[main](*args)
+        else:
+            self.broadcast(command)
+
     def help(self, *args):
         if not args:
             print("Available commands:")
@@ -54,45 +67,24 @@ class Chatter:
             except KeyError:
                 print(f"Unknown command '{args[0]}'.")
 
-    def parse_cmd(self, command):
-        cmd = command.split()
-
-        if not cmd:
-            return
-
-        main, args = cmd[0], cmd[1:]
-
-        if main in self.cmds.keys():
-            self.run_cmd(main, *args)
-        else:
-            self.broadcast(command)
-
-    def run_cmd(self, main, *args):
-        try:
-            self.cmds[main](*args)
-        except KeyError:
-            print(f"Unknown argument '{args[0]}' to '{main}'.")
-
     def check_packet(self, p):
         eth, arp = p[Ether], p[ARP]
 
         if eth.src != self.mac:
-            match arp.hwsrc[:2].lower():
-                case Kind.START.value:
+            match arp.hwsrc[:2]:
+                case Flag.START.value:
                     self.msg_table[eth.src] = {
                         "len": int(arp.hwsrc[3:5], 16),
                         "msg": "",
                     }
 
-                case Kind.DATA.value:
-                    try:
-                        self.decode_msg(eth.src, arp.hwsrc)
-                    except KeyError:
-                        pass
+                case Flag.DATA.value:
+                    if eth.src in self.msg_table.keys():
+                        self.decode_msg(eth.src, arp.hwsrc[3:])
 
     def decode_msg(self, sender, hex_msg):
         msg = []
-        for c in range(3, len(hex_msg), 3):
+        for c in range(0, len(hex_msg), 3):
             if hex_msg[c : c + 2] != "ff":
                 msg.append(chr(int(hex_msg[c : c + 2], 16)))
 
@@ -100,7 +92,8 @@ class Chatter:
         self.msg_table[sender]["msg"] += "".join(msg)
 
         if self.msg_table[sender]["len"] == 0:
-            print(f"{sender}: {self.msg_table[sender]['msg']}")
+            data = self.msg_table.pop(sender)
+            print(f"{sender}: {data['msg']}")
 
     def msg_to_hex_arr(self, message):
         return [hex(ord(c))[2:] for c in message.strip()]
@@ -140,9 +133,9 @@ class Chatter:
         msg_bytes = len(hex_msg)
         len_hex_msg = self.int_to_hex_padded(msg_bytes)
 
-        self.send([Kind.START.value, len_hex_msg, "ff", "ff", "ff", "ff"])
+        self.send([Flag.START.value, len_hex_msg, "ff", "ff", "ff", "ff"])
         for i in range(0, msg_bytes, 5):
-            self.send([Kind.DATA.value] + hex_msg[i : i + 5])
+            self.send([Flag.DATA.value] + hex_msg[i : i + 5])
 
         print(f"{msg_bytes} bytes sent.")
 
