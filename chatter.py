@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from enum import Enum
+from os import getuid
 from scapy.all import ARP, AsyncSniffer, conf, Ether, sendp
 
 
@@ -159,6 +160,14 @@ class Chatter:
         self.sniffer.stop()
 
 
+def is_sudo():
+    return getuid() == 0
+
+
 if __name__ == "__main__":
+    if not is_sudo():
+        print("Use sudo to run this program.")
+        exit(1)
+
     c = Chatter()
     c.run()
