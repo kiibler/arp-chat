@@ -40,19 +40,6 @@ class Chatter:
         }
         self.is_running = True
 
-    def parse_cmd(self, command):
-        cmd = command.split()
-
-        if not cmd:
-            return
-
-        main, args = cmd[0], cmd[1:]
-
-        if main in self.cmds.keys():
-            self.cmds[main](*args)
-        else:
-            self.broadcast(command)
-
     def exit(self):
         self.is_running = False
 
@@ -66,6 +53,22 @@ class Chatter:
                 print(f"\t{args[0]}: {self.cmd_descs[args[0]]}")
             except KeyError:
                 print(f"Unknown command '{args[0]}'.")
+
+    def parse_cmd(self, command):
+        cmd = command.split()
+
+        if not cmd:
+            return
+
+        main, args = cmd[0], cmd[1:]
+
+        if main in self.cmds.keys():
+            if main == "help":
+                self.cmds[main](*args)
+            else:
+                self.cmds[main]()
+        else:
+            self.broadcast(command)
 
     def add_to_msg_table(self, sender, hex_len):
         self.msg_table[sender] = {
