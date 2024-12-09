@@ -141,7 +141,7 @@ class Chatter:
         message = message[:255]
 
         hex_msg = self.msg_to_hex_arr(message)
-        msg_bytes = len(hex_msg)
+        msg_bytes = len(hex_msg) + 1
         len_hex_msg = self.int_to_hex_padded(msg_bytes)
 
         self.send([Flag.HEADER.value, len_hex_msg, "00", "00", "00", "00"])
